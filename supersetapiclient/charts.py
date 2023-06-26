@@ -3,6 +3,23 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from supersetapiclient.base import Object, ObjectFactories, default_string, json_field
+from urllib.parse import urlencode
+from base import raise_for_status
+
+@dataclass
+class ChartData(Object):
+    JSON_FIELDS = ["applied_template_filters","annotation_data"]
+    cache_key:str = default_string()
+    cache_timeout:int = None
+    applied_template_filters:dict = json_field()
+    annotation_data:dict = json_field()
+    error:str = None
+    is_cached:bool = None
+    query:str = None
+    status:str = None
+    stacktrace:str = None
+    rowcount:int = None
+
 
 
 @dataclass
@@ -22,6 +39,19 @@ class Chart(Object):
         o = super().to_json(columns)
         o["dashboards"] = self.dashboards
         return o
+
+    def get_row_count(self,force):
+        client = self._parent.client
+        url = client.join_urls(self.base_url,"data/")
+        encoded_params = urlencode({"force":force})
+        response = client.get(f"{url}?{encoded_params}")
+        raise_for_status(response)
+        response = response.json()
+
+        object_json = response.get("result")[0]
+        return ChartData().from_json(object_json).rowcount
+    
+
 
 
 class Charts(ObjectFactories):
